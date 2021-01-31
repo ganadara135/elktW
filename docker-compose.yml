@@ -1,0 +1,147 @@
+version: '3.2'
+
+services:
+  elasticsearch:
+    build:
+      context: "${PWD}/ELK/elasticsearch/"
+      dockerfile: elastic.Dockerfile
+      args:
+        ELK_VERSION: $ELK_VERSION
+    volumes:
+      - type: bind
+        source: "${PWD}/ELK/elasticsearch/config/elasticsearch.yml"
+        target: /usr/share/elasticsearch/config/elasticsearch.yml
+        read_only: true
+      - "${PWD}/ELK/elasticsearch/data:/usr/share/elasticsearch/data"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    # environment:
+    #   ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+    #   ELASTIC_PASSWORD: changeme
+    #   # Use single node discovery in order to disable production mode and avoid bootstrap checks
+    #   # see https://www.elastic.co/guide/en/elasticsearch/reference/current/bootstrap-checks.html
+    #   discovery.type: single-node
+    environment:
+      - bootstrap.memory_lock=true
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms3g -Xmx3g"
+      - cluster.routing.allocation.disk.threshold_enabled=false
+      - ELASTIC_PASSWORD=$ELK_PASSWORD
+      - xpack.security.enabled=true
+      - xpack.security.authc.api_key.enabled=true
+      - xpack.ml.enabled=false
+    networks:
+      - elk
+
+  enterprisesearch:
+    build:
+      context: "${PWD}/ELK/enterprisesearch/"
+      dockerfile: enterprisesearch.Dockerfile
+      args:
+        ELK_VERSION: $ELK_VERSION
+    ports: 
+      - $ENTERPRISESEARCH_PORT:$ENTERPRISESEARCH_PORT
+    environment:
+      - ent_search.auth.source=standard
+      - elasticsearch.username=$ELK_USER
+      - elasticsearch.password=$ELK_PASSWORD
+      - elasticsearch.host=http://elasticsearch:9200
+      - allow_es_settings_modification=true
+      - secret_management.encryption_keys=[XYZ]
+      - ENT_SEARCH_DEFAULT_PASSWORD=$ELK_PASSWORD
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+      - logstash
+      - kibana
+
+
+  logstash:
+    build:
+      context: "${PWD}/ELK/logstash/"
+      dockerfile: logstash.Dockerfile
+      args:
+        ELK_VERSION: $ELK_VERSION
+    volumes:
+      - type: bind
+        source: "${PWD}/ELK/logstash/config/logstash.yml"
+        target: /usr/share/logstash/config/logstash.yml
+        read_only: true
+      - type: bind
+        source: "${PWD}/ELK/logstash/pipeline"
+        target: /usr/share/logstash/pipeline
+        read_only: true
+    ports:
+      - "5001:5001/tcp"
+      - "5001:5001/udp"
+      - "9600:9600"
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+
+  kibana:
+    build:
+      context: ELK/kibana/
+      dockerfile: kibana.Dockerfile
+      args:
+        ELK_VERSION: $ELK_VERSION
+    volumes:
+      - type: bind
+        source: "${PWD}/ELK/kibana/config/kibana.yml"
+        target: /usr/share/kibana/config/kibana.yml
+        read_only: true
+    ports:
+      - $KIBANA_PORT:$KIBANA_PORT
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+      - logstash
+
+  
+
+  # web-back:
+  #   build:
+  #     context: web/back/
+  #     dockerfile: back.Dockerfile
+  #   ports:
+  #   - "5000:5000"
+  #   expose:
+  #     - "5000"
+  #   networks:
+  #     - elk
+  #   depends_on:
+  #     - kibana
+
+  # web-front:
+  #   build:
+  #     context: web/front/
+  #     dockerfile: front.Dockerfile
+  #   ports:
+  #   - "8080:8080"
+  #   expose:
+  #     - "8080"
+  #   networks:
+  #     - elk
+
+  # mongodb:
+  #     image: mongo
+  #     ports:
+  #         - "${MONGO_PORT}:27017"
+  #     volumes:
+  #         - "${PWD}/mongodb/data:/data/db"
+  #     env_file:
+  #         - .env
+
+
+networks:
+  elk:
+    driver: bridge
+
+volumes:
+  elasticsearch:

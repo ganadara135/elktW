@@ -1,0 +1,16 @@
+## Default Elasticsearch configuration from Elasticsearch base image.
+## https://github.com/elastic/elasticsearch/blob/master/distribution/docker/src/docker/config/elasticsearch.yml
+#
+server.name: etpsearch
+server.host: "0"
+# elasticsearch.hosts: [ "http://elasticsearch:9200" ]
+# allow_es_settings_modification: true
+# ent_search.auth.source: standard
+      
+      
+# secret_management.encryption_keys: [XYZ]
+# ENT_SEARCH_DEFAULT_PASSWORD: changeme
+
+
+# elasticsearch.username: elastic
+# elasticsearch.password: changeme
