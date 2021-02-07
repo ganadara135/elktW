@@ -2,6 +2,7 @@ version: '3.2'
 
 services:
   elasticsearch:
+    container_name: elasticsearch
     build:
       context: "${PWD}/ELK/elasticsearch/"
       dockerfile: elastic.Dockerfile
@@ -12,7 +13,10 @@ services:
         source: "${PWD}/ELK/elasticsearch/config/elasticsearch.yml"
         target: /usr/share/elasticsearch/config/elasticsearch.yml
         read_only: true
-      - "${PWD}/ELK/elasticsearch/data:/usr/share/elasticsearch/data"
+      # - "${PWD}/ELK/elasticsearch/data:/usr/share/elasticsearch/data"
+      - type: volume
+        source: elastic-data
+        target: /usr/share/elasticsearch/data
     ports:
       - "9200:9200"
       - "9300:9300"
@@ -35,6 +39,7 @@ services:
       - elk
 
   enterprisesearch:
+    container_name: enterprisesearch
     build:
       context: "${PWD}/ELK/enterprisesearch/"
       dockerfile: enterprisesearch.Dockerfile
@@ -42,6 +47,11 @@ services:
         ELK_VERSION: $ELK_VERSION
     ports: 
       - $ENTERPRISESEARCH_PORT:$ENTERPRISESEARCH_PORT
+    volumes:
+      - type: bind
+        source: "${PWD}/ELK/enterprisesearch/config/enterprise-search.yml"
+        target: /usr/share/enterprisesearch/config/enterprise-search.yml
+        read_only: true
     environment:
       - ent_search.auth.source=standard
       - elasticsearch.username=$ELK_USER
@@ -59,6 +69,7 @@ services:
 
 
   logstash:
+    container_name: logstash
     build:
       context: "${PWD}/ELK/logstash/"
       dockerfile: logstash.Dockerfile
@@ -85,6 +96,7 @@ services:
       - elasticsearch
 
   kibana:
+    container_name: kibana
     build:
       context: ELK/kibana/
       dockerfile: kibana.Dockerfile
@@ -144,4 +156,5 @@ networks:
     driver: bridge
 
 volumes:
-  elasticsearch:
+  elastic-data:
+    name: elastic-data
